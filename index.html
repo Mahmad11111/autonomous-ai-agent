@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Autonomous AI Agent Control Dashboard</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #0f172a; color: #f8fafc; margin: 0; padding: 20px; }
+        .container { max-width: 900px; margin: auto; background: #1e293b; padding: 30px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); }
+        h1 { text-align: center; color: #38bdf8; margin-bottom: 25px; }
+        .card { background: #0f172a; padding: 20px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #334155; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #94a3b8; }
+        textarea { width: 100%; height: 90px; padding: 12px; border-radius: 6px; border: 1px solid #475569; background: #1e293b; color: #fff; font-size: 15px; resize: vertical; box-sizing: border-box; }
+        button { background: #0284c7; color: white; border: none; padding: 12px 20px; font-size: 16px; border-radius: 6px; cursor: pointer; font-weight: bold; transition: background 0.2s; margin-top: 10px; }
+        button:hover { background: #0369a1; }
+        pre { background: #090d16; padding: 15px; border-radius: 6px; overflow-x: auto; color: #38bdf8; border: 1px solid #1e293b; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #334155; font-size: 14px; }
+        th { background: #1e293b; color: #38bdf8; }
+        .status-success { color: #4ade80; font-weight: bold; }
+        .loader { display: none; text-align: center; color: #38bdf8; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🤖 Autonomous AI Agent Control Room</h1>
+    
+    <!-- Agent Execution Card -->
+    <div class="card">
+        <h3>Execute New Goal</h3>
+        <label for="goalInput">Enter Agent Goal:</label>
+        <textarea id="goalInput" placeholder="e.g., Calculate 125 * 4, or write a note about python to notes.txt"></textarea>
+        <button onclick="runAgent()">Run Agent Task</button>
+        <div id="loader" class="loader">Agent is thinking and executing tools... Please wait.</div>
+    </div>
+
+    <!-- Live Output Card -->
+    <div class="card">
+        <h3>Live Execution Result</h3>
+        <pre id="outputResult">Awaiting execution...</pre>
+    </div>
+
+    <!-- Audit Logs Table Card -->
+    <div class="card">
+        <h3>Database Audit Logs</h3>
+        <button onclick="fetchLogs()" style="background: #334155; font-size: 14px; padding: 8px 15px;">Refresh Logs</button>
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Goal</th>
+                    <th>Status</th>
+                    <th>Timestamp</th>
+                </tr>
+            </thead>
+            <tbody id="logsTableBody">
+                <tr><td colspan="4" style="text-align: center; color: #94a3b8;">Click 'Refresh Logs' to load history.</td></tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    async function runAgent() {
+        const goal = document.getElementById("goalInput").value.trim();
+        if (!goal) {
+            alert("Please enter a valid goal!");
+            return;
+        }
+
+        const loader = document.getElementById("loader");
+        const outputBox = document.getElementById("outputResult");
+        
+        loader.style.display = "block";
+        outputBox.innerText = "Processing request...";
+
+        try {
+            const response = await fetch(`${API_URL}/run-agent`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ goal: goal, max_steps: 3 })
+            });
+            const data = await response.json();
+            outputBox.innerText = JSON.stringify(data, null, 2);
+            fetchLogs(); // Automatically update logs table after run
+        } catch (error) {
+            outputBox.innerText = `Error connecting to API server: ${error}`;
+        } finally {
+            loader.style.display = "none";
+        }
+    }
+
+    async function fetchLogs() {
+        try {
+            const response = await fetch(`${API_URL}/logs`);
+            const data = await response.json();
+            const tbody = document.getElementById("logsTableBody");
+            tbody.innerHTML = "";
+
+            if (data.logs.length === 0) {
+                tbody.innerHTML = `<tr><td colspan="4" style="text-align: center;">No logs found.</td></tr>`;
+                return;
+            }
+
+            data.logs.forEach(log => {
+                const tr = document.createElement("tr");
+                tr.innerHTML = `
+                    <td>${log.id}</td>
+                    <td>${log.goal}</td>
+                    <td class="status-success">${log.status}</td>
+                    <td>${log.timestamp}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        } catch (error) {
+            console.error("Error fetching logs:", error);
+        }
+    }
+
+    // Load logs automatically on page open
+    window.onload = fetchLogs;
+</script>
+
+</body>
+</html>
